@@ -37,7 +37,7 @@
 
             let buttons = "<h1>Make a new booking</h1>";
             for (let h = 10; h <= 22; h++) {
-                for (let m = 0; m < 60; m = m + 15) {
+                for (let m = 0; h == 22 ? m < 15 : m < 60; m = m + 15) {
                     let time = String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0');
                     if (!timeOverlaps(time, bookings)) {
                         let form = `<form action="./v1/bookings?day=${day}" method="POST">
