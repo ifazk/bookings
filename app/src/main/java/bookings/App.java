@@ -210,45 +210,23 @@ public class App {
             // We need a different technique if bookings can have different length
             // See if there are any bookings that start less that 2 hours before and after requested slot
             try {
-                conn.setAutoCommit(false);
-                String overlapSql = "SELECT COUNT(*) FROM bookings WHERE day = ?1 AND (unixepoch(?2, '-02:00') < unixepoch(time) AND unixepoch(time) < unixepoch(?2, '+02:00'))";
-                PreparedStatement p = conn.prepareStatement(overlapSql);
+                String insertWhereNotSql = "INSERT INTO bookings (day, time, name, size) SELECT ?1, ?2, ?3, ?4 WHERE NOT EXISTS (SELECT 1 FROM bookings WHERE day = ?1 AND (unixepoch(?2, '-02:00') < unixepoch(time) AND unixepoch(time) < unixepoch(?2, '+02:00')))";
+                PreparedStatement p = conn.prepareStatement(insertWhereNotSql);
                 p.setString(1, day);
                 p.setString(2, time);
-                ResultSet rs = p.executeQuery();
-                int count = 0;
-                if (rs.next()) {
-                    count = rs.getInt(1);
-                }
+                p.setString(3, name);
+                p.setInt(4, size);
+                int count = p.executeUpdate();
                 if (count > 0) {
-                    response.status(409);
-                    response.write("Selected slot overlaps with another booking");
-                } else {
-                    String insertSql = "INSERT INTO bookings (day, time, name, size) VALUES (?1, ?2, ?3, ?4)";
-                    PreparedStatement iStmt = conn.prepareStatement(insertSql);
-                    iStmt.setString(1, day);
-                    iStmt.setString(2, time);
-                    iStmt.setString(3, name);
-                    iStmt.setInt(4, size);
-                    iStmt.executeUpdate();
-                    conn.commit();
                     response.status(201);
                     response.write("Added new booking");
+                } else {
+                    response.status(409);
+                    response.write("Selected slot overlaps with another booking");
                 }
-                conn.setAutoCommit(true);
             } catch (SQLException e) {
                 response.status(500);
                 System.out.println(e.getMessage());
-            } finally {
-                try {
-                    if (!conn.getAutoCommit()) {
-                        conn.rollback();
-                        conn.setAutoCommit(true);
-                    } 
-                } catch (SQLException e) {
-                    response.status(500);
-                    System.out.println(e.getMessage());
-                }
             }
 
             return true;
